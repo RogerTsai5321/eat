@@ -47,7 +47,14 @@ a{color:var(--g)}
 </div>
 
 <div id="map"></div>
-<p class="mute">藍色圓點是出發點，綠色圓點是 10 分鐘內的餐廳，黃色是抽中的店。定位不準時，點地圖就能修正出發點。</p>
+<p class="mute">藍色圓點是出發點，綠色圓點是設定時間內可開車到達的餐廳，黃色是抽中的店。定位不準時，點地圖就能修正出發點。</p>
+
+<div class="row" style="margin-top:14px">
+  <label for="mins">開車時間上限</label>
+  <input type="number" id="mins" min="1" max="30" step="1" value="10" style="width:80px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit">
+  <span>分鐘內</span>
+  <span class="mute">（1–30，修改後自動重新搜尋）</span>
+</div>
 
 <h2>類型</h2>
 <div class="row" id="chips"></div>
@@ -163,7 +170,8 @@ $('#addrBtn').onclick = async () => {
   } catch (e) { status('地址查詢失敗，請稍後再試'); }
 };
 
-// 搜尋：Overpass 找店 → OSRM 算開車時間 → 留下 10 分鐘內
+// 搜尋：Overpass 找店 → OSRM 算開車時間 → 留下設定分鐘內
+const getMins = () => { let m = Math.round(+$('#mins').value); if (!(m >= 1)) m = 10; return Math.min(30, m); };
 async function getJSON(url, opt, ms = 30000) {
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
   try {
@@ -197,14 +205,15 @@ async function overpass(q) {
 }
 
 async function search(note) {
+  const M = getMins(), R = Math.min(20000, M * 700);
   const pre = note ? note + ' ' : '';
   status(pre + '搜尋附近餐廳…');
   let d;
-  const key = 'ov:' + loc.lat.toFixed(3) + ',' + loc.lon.toFixed(3);
+  const key = 'ov:' + R + ':' + loc.lat.toFixed(3) + ',' + loc.lon.toFixed(3);
   try { const c0 = JSON.parse(localStorage.getItem(key) || 'null'); if (c0 && Date.now() - c0.t < 12 * 36e5) d = { elements: c0.e }; } catch (e) {}
   if (!d) {
     try {
-      const q = `[out:json][timeout:20];nwr["amenity"~"^(restaurant|fast_food|food_court)$"](around:7000,${loc.lat},${loc.lon});out center tags;`;
+      const q = `[out:json][timeout:20];nwr["amenity"~"^(restaurant|fast_food|food_court)$"](around:${R},${loc.lat},${loc.lon});out center tags;`;
       d = await overpass(q);
       try {
         const e = d.elements.map(x => ({ type: x.type, id: x.id, lat: x.lat, lon: x.lon, center: x.center,
@@ -225,7 +234,7 @@ async function search(note) {
   }).filter(x => x.name && x.lat);
   c.forEach(x => x.dist = (x.lat - loc.lat) ** 2 + ((x.lon - loc.lon) * kx) ** 2);
   c.sort((a, b) => a.dist - b.dist);
-  c = c.slice(0, 297);
+  c = c.slice(0, M > 15 ? 495 : 297);
 
   status(pre + `找到 ${c.length} 家，計算開車時間…`);
   places = [];
@@ -244,7 +253,7 @@ async function search(note) {
     }
     ch.forEach((p, j) => {
       const s = dur[j];
-      if (s != null && s <= 600) {
+      if (s != null && s <= M * 60) {
         p.min = Math.max(1, Math.round(s / 60));
         p.cats = CATS.filter(k => k[1].test(p.cuisine)).map(k => k[0]);
         places.push(p);
@@ -253,7 +262,7 @@ async function search(note) {
   }
   places.sort((a, b) => a.min - b.min);
   picked = null;
-  status(pre + `找到 ${places.length} 家開車 10 分鐘內的餐廳` + (est ? '（路徑服務忙碌，車程為概估值）' : ''));
+  status(pre + `找到 ${places.length} 家開車 ${M} 分鐘內的餐廳` + (est ? '（路徑服務忙碌，車程為概估值）' : ''));
   render();
   if (places.length) map.fitBounds(L.latLngBounds([[loc.lat, loc.lon], ...places.map(p => [p.lat, p.lon])]).pad(0.1));
 }
@@ -338,6 +347,11 @@ function render() {
 }
 
 $('#favOnly').onchange = render;
+$('#mins').value = S.mins || 10;
+$('#mins').onchange = () => {
+  const m = getMins(); $('#mins').value = m; S.mins = m; save();
+  if (loc) search();
+};
 $('#clrHist').onclick = () => { S.hist = []; save(); render(); };
 $('#notes').value = S.notes || '';
 $('#notes').oninput = e => { S.notes = e.target.value; save(); };
