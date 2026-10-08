@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>今天吃什麼</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--bg:#F3F6F2;--ink:#17261F;--mute:#5E6F66;--line:#CBD6CE;--card:#fff;--g:#2F6B4F;--y:#F2B705}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:30px;margin:8px 0 2px}
+h2{font-size:17px;margin:28px 0 10px}
+.mute{color:var(--mute);font-size:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,input,textarea{font:inherit;color:inherit}
+input[type=text],textarea{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+textarea{min-height:90px;resize:vertical}
+.chip{border:1px solid var(--line);background:var(--card);padding:5px 14px;border-radius:999px;cursor:pointer}
+.chip.on{background:var(--g);color:#fff;border-color:var(--g)}
+.btn{border:1px solid var(--ink);background:var(--card);padding:6px 12px;border-radius:8px;cursor:pointer}
+.btn:focus-visible,.chip:focus-visible,.go:focus-visible{outline:3px solid var(--g);outline-offset:2px}
+.go{display:block;width:100%;background:var(--y);border:2px solid var(--ink);font-size:22px;font-weight:700;padding:16px;border-radius:12px;cursor:pointer;margin:18px 0}
+.card{background:var(--card);border:2px solid var(--ink);border-radius:12px;padding:16px;margin-bottom:8px}
+.card b{font-size:22px}
+.item{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.item small{color:var(--mute)}
+.ic{border:none;background:none;cursor:pointer;font-size:18px;padding:2px 6px}
+label{cursor:pointer}
+a{color:var(--g)}
+#map{height:340px;border:2px solid var(--ink);border-radius:12px;margin-top:12px}
+.name{cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<h1>今天吃什麼</h1>
+<p class="mute" id="status">請按「用我的位置搜尋」，或直接在地圖上點一下選擇出發點。</p>
+
+<div class="row">
+  <button class="btn" id="locBtn">用我的位置搜尋</button>
+</div>
+<div class="row" style="margin-top:8px">
+  <input type="text" id="addr" placeholder="或輸入地址／地標，例如：桃園火車站" style="flex:1;min-width:200px">
+  <button class="btn" id="addrBtn">搜尋</button>
+</div>
+
+<div id="map"></div>
+<p class="mute">藍色圓點是出發點，綠色圓點是 10 分鐘內的餐廳，黃色是抽中的店。定位不準時，點地圖就能修正出發點。</p>
+
+<h2>類型</h2>
+<div class="row" id="chips"></div>
+<div class="row" style="margin-top:12px;gap:16px">
+  <label><input type="checkbox" id="avoid" checked> 避開最近吃過的</label>
+  <label><input type="checkbox" id="favOnly"> 只看收藏</label>
+</div>
+
+<button class="go" id="pickBtn">幫我決定！</button>
+<div id="pick"></div>
+
+<h2>備註</h2>
+<textarea id="notes" placeholder="想到什麼都可以寫在這裡"></textarea>
+
+<h2>符合條件的餐廳 <span class="mute" id="count"></span></h2>
+<div id="list"></div>
+
+<h2>我的收藏</h2>
+<div id="favs"></div>
+
+<h2>最近吃過 <button class="btn" id="clrHist" style="margin-left:8px">清除</button></h2>
+<div id="hist"></div>
+
+<h2>黑名單</h2>
+<div id="bans"></div>
+
+<p class="mute" style="margin-top:32px">地圖資料：OpenStreetMap；路程估算：OSRM。部分店家沒有填寫菜系，只會在「全部」中出現。</p>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const CATS = [
+  ['中式', /chinese|taiwanese|noodle|dumpling|congee/],
+  ['西式', /american|burger|steak|western|french|german|spanish|sandwich|bbq|barbecue/],
+  ['日式', /japanese|sushi|ramen|udon|tempura|yakiniku|izakaya/],
+  ['義式', /italian|pizza|pasta/],
+  ['韓式', /korean/],
+  ['火鍋', /hot_?pot/],
+  ['早餐', /breakfast|brunch/],
+  ['小吃', /snack|street_food|chicken|bubble_tea|fried/],
+  ['素食', /vegetarian|vegan/]
+];
+let S = { fav: {}, ban: {}, hist: [], notes: '' };
+try { Object.assign(S, JSON.parse(localStorage.getItem('lunch-v1') || '{}')); } catch (e) {}
+const save = () => { try { localStorage.setItem('lunch-v1', JSON.stringify(S)); } catch (e) {} };
+let loc = null, places = [], sel = new Set();
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const status = t => $('#status').textContent = t;
+
+// 類型按鈕
+CATS.forEach(([k]) => {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.textContent = k;
+  b.onclick = () => { sel.has(k) ? sel.delete(k) : sel.add(k); b.classList.toggle('on'); render(); };
+  $('#chips').appendChild(b);
+});
+
+// 地圖
+const map = L.map('map').setView([24.9936, 121.3010], 12);
+const bases = {
+  '街道': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri, HERE, Garmin, OpenStreetMap contributors' }),
+  '地形': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { subdomains: 'abc', maxZoom: 17, attribution: '© OpenStreetMap contributors, SRTM | © OpenTopoMap' })
+};
+let baseErr = 0;
+bases['街道'].addTo(map);
+bases['街道'].on('tileerror', () => {
+  if (++baseErr === 6) { map.removeLayer(bases['街道']); bases['地形'].addTo(map); status('街道底圖載入失敗，已自動切換為地形底圖。'); }
+});
+L.control.layers(bases, null, { position: 'topright' }).addTo(map);
+const layer = L.layerGroup().addTo(map);
+let me = null, markers = {}, picked = null;
+map.on('click', e => setStart(e.latlng.lat, e.latlng.lng));
+function setStart(lat, lon, msg) {
+  loc = { lat, lon };
+  if (me) me.setLatLng([lat, lon]);
+  else me = L.circleMarker([lat, lon], { radius: 9, color: '#fff', weight: 3, fillColor: '#1E5BFF', fillOpacity: 1 }).addTo(map).bindPopup('出發點');
+  map.setView([lat, lon], 14);
+  search(msg);
+}
+function focusP(id) {
+  const p = find(id); if (!p) return;
+  picked = id; render();
+  map.setView([p.lat, p.lon], Math.max(map.getZoom(), 16));
+  if (markers[id]) markers[id].openPopup();
+}
+
+// 定位
+$('#locBtn').onclick = () => {
+  status('定位中…');
+  const fallback = async why => {
+    try {
+      const r = await (await fetch('https://ipwho.is/')).json();
+      if (!r.success) throw 0;
+      setStart(r.latitude, r.longitude, why + '已改用網路位置概估（可能差幾公里），請在地圖上點一下修正出發點。');
+    } catch (e) { status(why + '請直接在地圖上點一下選擇出發點，或輸入地址。'); }
+  };
+  if (!navigator.geolocation) return fallback('此瀏覽器不支援定位。');
+  navigator.geolocation.getCurrentPosition(
+    p => setStart(p.coords.latitude, p.coords.longitude),
+    err => fallback(err.code === 1 ? '瀏覽器或系統拒絕了定位權限（本機檔案常被擋）。' : '無法取得定位。'),
+    { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
+  );
+};
+$('#addrBtn').onclick = async () => {
+  const q = $('#addr').value.trim();
+  if (!q) return;
+  status('查詢地址…');
+  try {
+    const r = await (await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q))).json();
+    if (!r[0]) return status('找不到這個地點，換個說法試試');
+    setStart(+r[0].lat, +r[0].lon);
+  } catch (e) { status('地址查詢失敗，請稍後再試'); }
+};
+
+// 搜尋：Overpass 找店 → OSRM 算開車時間 → 留下 10 分鐘內
+async function getJSON(url, opt, ms = 30000) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { ...opt, signal: ctl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+const OVERPASS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.openstreetmap.fr/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// 同時問多個伺服器，誰先成功就用誰；全部失敗時等幾秒再重試一輪
+async function overpass(q) {
+  let last;
+  for (let round = 0; round < 3; round++) {
+    try {
+      status(round ? `伺服器忙碌，第 ${round + 1} 次嘗試中…` : '搜尋附近餐廳…');
+      return await Promise.any(OVERPASS.map(u =>
+        getJSON(u + '?data=' + encodeURIComponent(q), {}, 25000).then(d => {
+          if (!d.elements || (d.remark && !d.elements.length)) throw new Error('伺服器逾時');
+          return d;
+        })));
+    } catch (e) { last = e; await sleep(3000); }
+  }
+  throw last;
+}
+
+async function search(note) {
+  const pre = note ? note + ' ' : '';
+  status(pre + '搜尋附近餐廳…');
+  let d;
+  const key = 'ov:' + loc.lat.toFixed(3) + ',' + loc.lon.toFixed(3);
+  try { const c0 = JSON.parse(localStorage.getItem(key) || 'null'); if (c0 && Date.now() - c0.t < 12 * 36e5) d = { elements: c0.e }; } catch (e) {}
+  if (!d) {
+    try {
+      const q = `[out:json][timeout:20];nwr["amenity"~"^(restaurant|fast_food|food_court)$"](around:7000,${loc.lat},${loc.lon});out center tags;`;
+      d = await overpass(q);
+      try {
+        const e = d.elements.map(x => ({ type: x.type, id: x.id, lat: x.lat, lon: x.lon, center: x.center,
+          tags: { name: (x.tags || {}).name, 'name:zh': (x.tags || {})['name:zh'], cuisine: (x.tags || {}).cuisine, 'diet:vegetarian': (x.tags || {})['diet:vegetarian'] } }));
+        localStorage.setItem(key, JSON.stringify({ t: Date.now(), e }));
+      } catch (e) {}
+    } catch (e) {
+      return status(pre + '找餐廳失敗：5 個地圖資料伺服器都沒有回應，可能是伺服器忙碌，或你的網路／瀏覽器擋住了連線。請稍等 1 分鐘再點一次地圖，或換個瀏覽器試試。');
+    }
+  }
+
+  const kx = Math.cos(loc.lat * Math.PI / 180);
+  let c = (d.elements || []).map(e => {
+    const t = e.tags || {};
+    const la = e.lat ?? (e.center && e.center.lat), lo = e.lon ?? (e.center && e.center.lon);
+    return { id: e.type + e.id, name: t['name:zh'] || t.name, lat: la, lon: lo,
+             cuisine: (t.cuisine || '') + ' ' + (t['diet:vegetarian'] === 'only' ? 'vegetarian' : '') };
+  }).filter(x => x.name && x.lat);
+  c.forEach(x => x.dist = (x.lat - loc.lat) ** 2 + ((x.lon - loc.lon) * kx) ** 2);
+  c.sort((a, b) => a.dist - b.dist);
+  c = c.slice(0, 297);
+
+  status(pre + `找到 ${c.length} 家，計算開車時間…`);
+  places = [];
+  let est = false;
+  for (let i = 0; i < c.length; i += 99) {
+    const ch = c.slice(i, i + 99);
+    let dur = null;
+    try {
+      const co = [loc, ...ch].map(p => p.lon.toFixed(5) + ',' + p.lat.toFixed(5)).join(';');
+      const r = await getJSON(`https://router.project-osrm.org/table/v1/driving/${co}?sources=0&annotations=duration`, {}, 20000);
+      if (r.durations && r.durations[0]) dur = r.durations[0].slice(1);
+    } catch (e) {}
+    if (!dur) { // 路徑服務失敗：用直線距離 ×1.4，時速 30 公里概估
+      est = true;
+      dur = ch.map(p => Math.sqrt(p.dist) * 111000 * 1.4 / (30000 / 3600));
+    }
+    ch.forEach((p, j) => {
+      const s = dur[j];
+      if (s != null && s <= 600) {
+        p.min = Math.max(1, Math.round(s / 60));
+        p.cats = CATS.filter(k => k[1].test(p.cuisine)).map(k => k[0]);
+        places.push(p);
+      }
+    });
+  }
+  places.sort((a, b) => a.min - b.min);
+  picked = null;
+  status(pre + `找到 ${places.length} 家開車 10 分鐘內的餐廳` + (est ? '（路徑服務忙碌，車程為概估值）' : ''));
+  render();
+  if (places.length) map.fitBounds(L.latLngBounds([[loc.lat, loc.lon], ...places.map(p => [p.lat, p.lon])]).pad(0.1));
+}
+
+// 篩選後的候選名單
+function pool() {
+  const now = Date.now();
+  const recent = new Set(S.hist.filter(h => now - h.t < 7 * 864e5).map(h => h.id));
+  const last = S.hist[0], lastCats = last && now - last.t < 864e5 ? last.cats : [];
+  return places.filter(p =>
+    !S.ban[p.id] &&
+    (!sel.size || p.cats.some(c => sel.has(c))) &&
+    (!$('#favOnly').checked || S.fav[p.id]) &&
+    (!$('#avoid').checked || (!recent.has(p.id) && !(lastCats.length && p.cats.some(c => lastCats.includes(c)))))
+  );
+}
+
+// 隨機抽一家
+$('#pickBtn').onclick = () => {
+  if (!places.length) { $('#pick').innerHTML = '<p class="mute">請先搜尋附近餐廳。</p>'; return; }
+  const p = pool();
+  if (!p.length) { $('#pick').innerHTML = '<p class="mute">沒有符合條件的餐廳。放寬類型，或取消「避開最近吃過的」再試試。</p>'; return; }
+  const x = p[Math.floor(Math.random() * p.length)];
+  setTimeout(() => focusP(x.id), 0);
+  $('#pick').innerHTML = `<div class="card"><b>${esc(x.name)}</b>
+    <div class="mute">開車約 ${x.min} 分鐘 ${x.cats.length ? '・' + x.cats.join('、') : ''}</div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" onclick="eat('${x.id}')">就吃這家</button>
+      <button class="btn" onclick="fav('${x.id}')">${S.fav[x.id] ? '取消收藏' : '收藏'}</button>
+      <button class="btn" onclick="ban('${x.id}')">不要再出現</button>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=${x.lat},${x.lon}&travelmode=driving" target="_blank" rel="noopener">導航</a>
+    </div></div>`;
+};
+
+const find = id => places.find(p => p.id === id);
+function eat(id) {
+  const p = find(id); if (!p) return;
+  S.hist.unshift({ id, name: p.name, t: Date.now(), cats: p.cats });
+  S.hist = S.hist.slice(0, 30); save();
+  $('#pick').innerHTML = `<p class="mute">已記錄：${esc(p.name)}。用餐愉快！</p>`; render();
+}
+function fav(id) {
+  const p = find(id); if (!p) return;
+  S.fav[id] ? delete S.fav[id] : (S.fav[id] = p.name); save(); render();
+  $('#pick').innerHTML = '';
+}
+function ban(id) {
+  const p = find(id); if (!p) return;
+  S.ban[id] = p.name; save(); render();
+  $('#pick').innerHTML = `<p class="mute">已加入黑名單：${esc(p.name)}。</p>`;
+}
+function unfav(id) { delete S.fav[id]; save(); render(); }
+function unban(id) { delete S.ban[id]; save(); render(); }
+
+function render() {
+  const all = places.filter(p => !S.ban[p.id] && (!sel.size || p.cats.some(c => sel.has(c))) && (!$('#favOnly').checked || S.fav[p.id]));
+  layer.clearLayers(); markers = {};
+  all.forEach(p => {
+    const on = p.id === picked;
+    markers[p.id] = L.circleMarker([p.lat, p.lon], on
+      ? { radius: 13, color: '#17261F', weight: 3, fillColor: '#F2B705', fillOpacity: 1 }
+      : { radius: 7, color: '#fff', weight: 2, fillColor: '#2F6B4F', fillOpacity: .9 })
+      .bindPopup(`<b>${esc(p.name)}</b><br>開車約 ${p.min} 分鐘`).addTo(layer);
+    if (on) markers[p.id].bringToFront();
+  });
+  $('#count').textContent = places.length ? `（${all.length} 家，顯示前 30）` : '';
+  $('#list').innerHTML = all.slice(0, 30).map(p => `<div class="item">
+    <div><span class="name" onclick="focusP('${p.id}')">${S.fav[p.id] ? '★ ' : ''}${esc(p.name)}</span><br><small>約 ${p.min} 分鐘 ${p.cats.length ? '・' + p.cats.join('、') : ''}</small></div>
+    <div><button class="ic" title="收藏" onclick="fav('${p.id}')">${S.fav[p.id] ? '★' : '☆'}</button>
+    <button class="ic" title="加入黑名單" onclick="ban('${p.id}')">🚫</button></div></div>`).join('')
+    || `<p class="mute">${places.length ? '沒有符合條件的餐廳。若勾選了「只看收藏」，代表你的收藏店家不在目前範圍或類型內。' : '尚無資料。'}</p>`;
+  $('#hist').innerHTML = S.hist.slice(0, 10).map(h => {
+    const d = new Date(h.t);
+    return `<div class="item"><span>${esc(h.name)}</span><small>${d.getMonth() + 1}/${d.getDate()}</small></div>`;
+  }).join('') || '<p class="mute">還沒有紀錄。</p>';
+  const fk = Object.keys(S.fav);
+  $('#favs').innerHTML = fk.map(id => `<div class="item"><div>★ ${esc(S.fav[id])}<br><small>${find(id) ? '在目前範圍內，約 ' + find(id).min + ' 分鐘' : '不在目前搜尋範圍'}</small></div>
+    <button class="btn" onclick="unfav('${id}')">移除</button></div>`).join('') || '<p class="mute">還沒有收藏。</p>';
+  const bk = Object.keys(S.ban);
+  $('#bans').innerHTML = bk.map(id => `<div class="item"><span>${esc(S.ban[id])}</span>
+    <button class="btn" onclick="unban('${id}')">移除</button></div>`).join('') || '<p class="mute">沒有黑名單店家。</p>';
+}
+
+$('#favOnly').onchange = render;
+$('#clrHist').onclick = () => { S.hist = []; save(); render(); };
+$('#notes').value = S.notes || '';
+$('#notes').oninput = e => { S.notes = e.target.value; save(); };
+render();
+</script>
+</body>
+</html>
