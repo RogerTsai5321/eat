@@ -6,56 +6,68 @@
 <title>今天吃什麼</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-:root{--ink:#1D1D1F;--red:#FF4B2B;--blue:#1B2CC1;--mute:#86868B;--fill:#F2F2F7;--hair:#E5E5EA;--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","PingFang TC","Helvetica Neue","Microsoft JhengHei",sans-serif}
+:root{--ink:#4A3B3B;--acc:#D9466F;--soft:#FFE3EC;--mute:#8C7B7B;--hair:#F3D5DE;--fill:#FFF0F4;--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","PingFang TC","Helvetica Neue","Microsoft JhengHei",sans-serif}
 *{box-sizing:border-box}
-body{margin:0;background:#fff;color:var(--ink);font:16px/1.6 var(--font);-webkit-font-smoothing:antialiased}
-main{max-width:760px;margin:0 auto;padding-bottom:50px}
+body{margin:0;background:#FFF6F8;color:var(--ink);font:16px/1.6 var(--font);-webkit-font-smoothing:antialiased}
+main{max-width:760px;margin:0 auto;padding-bottom:130px}
 .sec{padding:4px 18px 20px}
-.hero{background:var(--red);color:#fff;padding:28px 18px 24px;border-radius:0 0 32px 32px}
-.hero small{font-weight:600;letter-spacing:.04em;opacity:.92}
+.hero{background:linear-gradient(160deg,#FFC2D1,#FFD9B8);color:var(--ink);padding:28px 18px 24px;border-radius:0 0 36px 36px}
+.hero small{font-weight:700;letter-spacing:.04em}
 h1{font:800 clamp(56px,17vw,104px)/1 var(--font);letter-spacing:-.03em;margin:8px 0 12px}
-h2{font:700 22px/1.3 var(--font);letter-spacing:-.01em;margin:32px 0 12px}
+h2{font:700 22px/1.3 var(--font);margin:32px 0 12px;display:inline-block;background:linear-gradient(transparent 60%,#FFC2D1 60%)}
 .mute{color:var(--mute);font-size:14px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 button,input,textarea{font:inherit;color:inherit}
-input[type=text],input[type=number],textarea{width:100%;padding:12px 16px;border:0;border-radius:14px;background:var(--fill);outline:0;transition:box-shadow .15s}
+input[type=text],input[type=number],textarea{width:100%;padding:12px 16px;border:0;border-radius:18px;background:var(--fill);outline:0;box-shadow:inset 0 0 0 2px var(--hair);transition:box-shadow .15s}
 input[type=number]{width:84px;text-align:center}
-input[type=text]:focus,input[type=number]:focus,textarea:focus{box-shadow:0 0 0 3px rgba(27,44,193,.25)}
-.hero input[type=text]{background:rgba(255,255,255,.95)}
+input[type=text]:focus,input[type=number]:focus,textarea:focus{box-shadow:inset 0 0 0 2px var(--acc),0 0 0 4px rgba(217,70,111,.15)}
+.hero input[type=text]{background:rgba(255,255,255,.85)}
 textarea{min-height:100px;resize:vertical}
-.chip{border:0;background:#E5E5EA;color:var(--ink);padding:8px 16px;border-radius:999px;cursor:pointer;font-weight:600;transition:transform .1s,background .15s}
-.chip.on{background:var(--ink);color:#fff}
-.chip.no{background:#FFE3DD;color:#D8321A;text-decoration:line-through}
+.chip{border:0;background:var(--soft);color:var(--ink);padding:8px 16px;border-radius:999px;cursor:pointer;font-weight:600;transition:transform .1s}
+.chip.on{background:var(--acc);color:#fff}
+.chip.no{background:#E9E2FF;color:#6B4FBF;text-decoration:line-through}
 .btn{border:0;background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;cursor:pointer;font-weight:600;transition:transform .1s}
-.chip:active,.btn:active{transform:scale(.95)}
-.hero .btn,.card .btn{background:#FFD60A;color:#1D1D1F}
-.btn:focus-visible,.chip:focus-visible,.go:focus-visible{outline:3px solid rgba(27,44,193,.45);outline-offset:2px}
-.go{display:block;width:100%;background:var(--ink);color:#fff;border:0;font:800 clamp(26px,8vw,44px)/1.2 var(--font);padding:22px;border-radius:28px;cursor:pointer;margin:24px 0;box-shadow:0 10px 30px rgba(0,0,0,.18);transition:transform .1s}
-.go:active{transform:scale(.98)}
-.card{background:var(--blue);color:#fff;padding:24px 22px;border-radius:28px;margin-bottom:8px;box-shadow:0 12px 32px rgba(27,44,193,.3)}
-.card b{display:block;font:800 clamp(32px,9.5vw,56px)/1.15 var(--font);letter-spacing:-.02em;margin-bottom:8px;word-break:break-word}
-.card a{color:#fff;background:rgba(255,255,255,.18);padding:4px 14px;border-radius:999px;font-weight:600;margin:0 8px 6px 0;text-decoration:none;display:inline-block}
-.card .mute{color:#dfe3ff}
-.tag{display:inline-block;padding:0 9px;border-radius:999px;background:var(--fill);color:var(--ink);font-size:12px;font-weight:600;margin-left:4px}
-.card .tag{background:rgba(255,255,255,.2);color:#fff}
+.chip:active,.btn:active{transform:scale(.94)}
+.btn:focus-visible,.chip:focus-visible,.go:focus-visible{outline:3px solid rgba(217,70,111,.5);outline-offset:2px}
+.go{display:block;width:100%;background:var(--acc);color:#fff;border:0;font:800 clamp(26px,8vw,42px)/1.2 var(--font);padding:20px;border-radius:32px;cursor:pointer;margin:24px 0;box-shadow:0 8px 0 #A62E50;transition:transform .1s,box-shadow .1s}
+.go:active{transform:translateY(6px);box-shadow:0 2px 0 #A62E50}
+.card{background:var(--soft);color:var(--ink);padding:24px 22px;border-radius:32px;margin-bottom:8px;box-shadow:0 10px 28px rgba(217,70,111,.18)}
+.card b{display:block;font:800 clamp(32px,9.5vw,54px)/1.15 var(--font);margin-bottom:8px;word-break:break-word}
+.card a{color:#fff;background:var(--acc);padding:4px 14px;border-radius:999px;font-weight:600;margin:0 8px 6px 0;text-decoration:none;display:inline-block}
+.tag{display:inline-block;padding:0 9px;border-radius:999px;background:#fff;color:var(--ink);font-size:12px;font-weight:600;margin-left:4px}
 .tag.open{background:#D6F5E3;color:#0A7A3C}.tag.closed{background:var(--hair);color:#6B6B70}
-.card .tag.open{background:#18B25B;color:#fff}.card .tag.closed{background:rgba(0,0,0,.3);color:#fff}
-.item{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--hair)}
+.item{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:12px 0;border-bottom:2px dotted var(--hair)}
 .item small{color:var(--mute)}
 .ic{border:none;background:none;cursor:pointer;font-size:20px;padding:2px 6px}
 .bar{display:grid;grid-template-columns:64px 1fr 28px;gap:8px;align-items:center;margin:8px 0}
-.bar i{display:block;height:14px;background:var(--red);border-radius:999px}.bar b{text-align:right}
+.bar i{display:block;height:14px;background:var(--acc);border-radius:999px}.bar b{text-align:right}
 .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:14px}
-.opts label{display:flex;align-items:center;gap:10px;background:var(--fill);padding:10px 14px;border-radius:14px}
-input[type=checkbox]{-webkit-appearance:none;appearance:none;width:46px;height:28px;border-radius:999px;background:#D1D1D6;position:relative;cursor:pointer;transition:background .2s;margin:0;flex:none}
-input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.25);transition:transform .2s}
-input[type=checkbox]:checked{background:#34C759}
+.opts label{display:flex;align-items:center;gap:10px;background:var(--soft);padding:10px 14px;border-radius:18px}
+input[type=checkbox]{-webkit-appearance:none;appearance:none;width:46px;height:28px;border-radius:999px;background:#E4CDD5;position:relative;cursor:pointer;transition:background .2s;margin:0;flex:none}
+input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
+input[type=checkbox]:checked{background:var(--acc)}
 input[type=checkbox]:checked::after{transform:translateX(18px)}
 label{cursor:pointer}
-a{color:var(--blue)}
-#map{height:380px;margin:16px;border-radius:24px;box-shadow:0 8px 28px rgba(0,0,0,.15);position:relative;z-index:0}
+a{color:var(--acc)}
+#map{height:380px;margin:16px;border-radius:28px;box-shadow:0 8px 28px rgba(217,70,111,.2);position:relative;z-index:0}
 .leaflet-container{font-family:var(--font)}
 .name{cursor:pointer;font-weight:600}
+#bud{position:fixed;right:8px;bottom:0;width:110px;z-index:999;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .5s cubic-bezier(.34,1.56,.64,1)}
+#bud[data-s=hide]{transform:translateX(130%)}
+#bud[data-s=peek]{transform:translateX(36%)}
+#bud svg{display:block;width:100%;overflow:visible}
+#bud .ec,#bud .z{display:none}
+#bud.sleep .eo{display:none}#bud.sleep .ec,#bud.sleep .z{display:inline}
+#bud .z{animation:zz 2s infinite;font-family:var(--font)}
+#bud.dance svg{animation:dance .5s ease-in-out infinite;transform-origin:50% 100%}
+#bud.bounce svg{animation:bounce .6s;transform-origin:50% 100%}
+#say{position:fixed;right:122px;bottom:64px;max-width:200px;background:#fff;color:var(--ink);padding:8px 14px;border-radius:18px;font-size:14px;font-weight:600;box-shadow:0 6px 18px rgba(74,59,59,.18);opacity:0;transform:scale(.8);transform-origin:100% 100%;transition:.25s;pointer-events:none;z-index:999}
+#say.on{opacity:1;transform:none}
+.heart{position:fixed;font-size:26px;pointer-events:none;z-index:1000;animation:rise 1.6s ease-out forwards}
+@keyframes dance{0%,100%{transform:rotate(-9deg) translateY(0)}50%{transform:rotate(9deg) translateY(-14px)}}
+@keyframes bounce{0%{transform:none}30%{transform:translateY(-34px) scaleY(1.1)}60%{transform:scaleY(.82)}100%{transform:none}}
+@keyframes rise{from{opacity:1;transform:translateY(0) scale(.6)}to{opacity:0;transform:translateY(-150px) scale(1.2)}}
+@keyframes zz{0%{opacity:0;transform:translate(0,0)}50%{opacity:1}100%{opacity:0;transform:translate(8px,-14px)}}
 </style>
 </head>
 <body>
@@ -118,6 +130,17 @@ a{color:var(--blue)}
 </div>
 <p class="mute sec">地圖資料：OpenStreetMap；路程估算：OSRM。部分店家沒有填寫菜系，只會在「全部」中出現。</p>
 </main>
+<div id="say"></div>
+<div id="bud" data-s="hide" title="戳我！"><svg viewBox="0 0 120 120" role="img" aria-label="飯糰吉祥物">
+<path d="M60 10C72 10 82 18 94 44C104 66 108 86 106 98C104 108 94 112 60 112C26 112 16 108 14 98C12 86 16 66 26 44C38 18 48 10 60 10Z" fill="#fff" stroke="#4A3B3B" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M32 84H88V108C80 111 70 112 60 112C50 112 40 111 32 108Z" fill="#4A3B3B"/>
+<path d="M60 11Q56 1 47 2Q49 11 60 11Z" fill="#8BD3A8" stroke="#4A3B3B" stroke-width="2.5" stroke-linejoin="round"/>
+<ellipse cx="36" cy="66" rx="7" ry="5" fill="#FFB3C6"/><ellipse cx="84" cy="66" rx="7" ry="5" fill="#FFB3C6"/>
+<g class="eo"><circle cx="46" cy="56" r="4.4" fill="#4A3B3B"/><circle cx="74" cy="56" r="4.4" fill="#4A3B3B"/><circle cx="47.4" cy="54.6" r="1.4" fill="#fff"/><circle cx="75.4" cy="54.6" r="1.4" fill="#fff"/></g>
+<path class="ec" d="M41 57Q46 61 51 57M69 57Q74 61 79 57" fill="none" stroke="#4A3B3B" stroke-width="3" stroke-linecap="round"/>
+<path d="M54 63Q60 70 66 63" fill="none" stroke="#4A3B3B" stroke-width="3" stroke-linecap="round"/>
+<text class="z" x="88" y="24" font-size="18" font-weight="800" fill="#6B4FBF">Z</text>
+</svg></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -371,7 +394,7 @@ $('#pickBtn').onclick = () => {
   let p = pool(); if (!p.length) p = pool(true);
   if (!p.length) { $('#pick').innerHTML = '<p class="mute">沒有符合條件的餐廳。放寬類型，或取消「避開最近吃過的」「只看營業中」再試試。</p>'; return; }
   const x = p[Math.floor(Math.random() * p.length)];
-  spinning = true; let i = 0;
+  spinning = true; let i = 0; budDance(true);
   const step = () => {
     if (i < 14) {
       $('#pick').innerHTML = `<div class="card"><b>${esc(p[Math.floor(Math.random() * p.length)].name)}</b></div>`;
@@ -381,6 +404,7 @@ $('#pickBtn').onclick = () => {
   step();
 };
 function showPick(x) {
+  budDone(x);
   setTimeout(() => focusP(x.id), 0);
   const ph = /^[\d+\-\s()#,]+$/.test(x.phone || '') ? x.phone : '', web = /^https?:\/\//.test(x.web || '') ? x.web : '';
   $('#pick').innerHTML = `<div class="card"><b>${esc(x.name)}</b>
@@ -396,6 +420,7 @@ function showPick(x) {
 const find = id => places.find(p => p.id === id);
 function eat(id) {
   const p = find(id); if (!p) return;
+  budSay(S.hist[0] && S.hist[0].id === id ? '又是這家？？你真的很愛欸～' : '用餐愉快！吃飽再來找我～', 4000);
   S.hist.unshift({ id, name: p.name, t: Date.now(), cats: p.cats });
   S.hist = S.hist.slice(0, 300); save();
   $('#pick').innerHTML = `<p class="mute">已記錄：${esc(p.name)}。用餐愉快！</p>`; render();
@@ -420,7 +445,7 @@ function render() {
     const on = p.id === picked;
     markers[p.id] = L.circleMarker([p.lat, p.lon], on
       ? { radius: 13, color: '#17261F', weight: 3, fillColor: '#FFD60A', fillOpacity: 1 }
-      : { radius: 7, color: '#fff', weight: 2, fillColor: '#FF4B2B', fillOpacity: .9 })
+      : { radius: 7, color: '#fff', weight: 2, fillColor: '#FF7A9C', fillOpacity: .9 })
       .bindPopup(`<b>${esc(p.name)}</b><br>開車約 ${p.min} 分鐘`).addTo(layer);
     if (on) markers[p.id].bringToFront();
   });
@@ -453,6 +478,60 @@ $('#mins').onchange = () => {
   if (loc) search();
 };
 $('#clrHist').onclick = () => { S.hist = []; save(); render(); };
+// ===== 飯糰吉祥物 =====
+const bud = $('#bud'), say = $('#say');
+let sayT, idleT = Date.now(), asleep = false;
+const setS = v => bud.dataset.s = v;
+const LINES = ['我是飯糰，不是麻糬喔！', '今天也要好好吃飯～', '別戳啦，我會滾走', '頭上的海苔不能吃！', '選擇障礙？交給我！', '嘿嘿，被你發現了', '我的肚子裡裝滿了夢想（和梅子）'];
+const HUNGRY = { 早餐: '早餐時間到～肚子咕嚕咕嚕', 午餐: '該吃午餐囉～', 下午茶: '下午茶時間！想吃點小點心', 晚餐: '晚餐時間到，我餓扁了', 宵夜: '宵夜……就一口，好不好？' };
+function speak(t, ms = 3200) { say.textContent = t; say.classList.add('on'); clearTimeout(sayT); sayT = setTimeout(() => say.classList.remove('on'), ms); }
+function budSay(t, ms = 3200) { setS('out'); speak(t, ms); setTimeout(() => { if (!asleep && !spinning) setS('hide'); }, ms + 1500); }
+function budDance(on) { if (on) { setS('out'); bud.classList.add('dance'); speak('加油加油～！', 2800); } else bud.classList.remove('dance'); }
+function hearts() {
+  for (let i = 0; i < 12; i++) {
+    const e = document.createElement('div'); e.className = 'heart'; e.textContent = ['💗', '💖', '✨', '🍙'][i % 4];
+    e.style.left = (25 + Math.random() * 60) + 'vw'; e.style.bottom = (8 + Math.random() * 25) + 'vh'; e.style.animationDelay = (Math.random() * .5) + 's';
+    document.body.appendChild(e); setTimeout(() => e.remove(), 2400);
+  }
+}
+function budDone(x) {
+  budDance(false); hearts();
+  const last = S.hist[0]; let msg = '決定囉！就吃這家～';
+  if (last && last.id === x.id) msg = '又是這家？？你是不是太愛了';
+  else if (last && Date.now() - last.t < 2 * 864e5 && last.cats.length) {
+    const c = x.cats.find(c => last.cats.includes(c));
+    if (c) msg = `又吃${c}？換換口味嘛～`;
+  }
+  budSay(msg, 4000);
+}
+// 戳一下：彈跳＋廢話
+bud.onclick = () => {
+  if (bud.dataset.s === 'hide') return;
+  bud.classList.remove('bounce'); void bud.offsetWidth; bud.classList.add('bounce');
+  if (asleep) return;
+  setS('out'); speak(LINES[Math.floor(Math.random() * LINES.length)], 3000);
+  setTimeout(() => { if (!asleep && !spinning) setS('hide'); }, 4500);
+};
+// 不定期從角落探頭
+function schedulePeek(first) {
+  setTimeout(() => {
+    if (!asleep && !spinning && bud.dataset.s === 'hide') {
+      setS('peek'); speak(Math.random() < .5 ? HUNGRY[meal()[0]] : LINES[Math.floor(Math.random() * LINES.length)], 3200);
+      setTimeout(() => { if (!asleep && !spinning && bud.dataset.s === 'peek') setS('hide'); }, 4000);
+    }
+    schedulePeek();
+  }, first ? 4000 : 20000 + Math.random() * 25000);
+}
+// 久沒操作就睡著，一操作就醒
+setInterval(() => {
+  if (!asleep && !spinning && Date.now() - idleT > 45000) { asleep = true; bud.classList.add('sleep'); setS('out'); speak('Zzz…', 2500); }
+}, 5000);
+['pointerdown', 'keydown', 'scroll'].forEach(ev => addEventListener(ev, () => {
+  idleT = Date.now();
+  if (asleep) { asleep = false; bud.classList.remove('sleep'); budSay('哇！我沒睡我沒睡', 2500); }
+}, { passive: true }));
+schedulePeek(true);
+
 { const m = meal(); $('#meal').textContent = `現在是${m[0]}時間` + (m[1] ? '・優先推薦：' + m[1].join('、') : '・什麼都可以吃'); }
 $('#notes').value = S.notes || '';
 $('#notes').oninput = e => { S.notes = e.target.value; save(); };
